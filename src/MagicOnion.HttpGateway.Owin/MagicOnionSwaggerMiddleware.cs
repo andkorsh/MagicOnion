@@ -1,30 +1,30 @@
 using MagicOnion.HttpGateway.Swagger;
 using MagicOnion.Server;
-using Microsoft.AspNetCore.Http;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.Owin;
 
 namespace MagicOnion.HttpGateway
 {
-    public class MagicOnionSwaggerMiddleware
+    public class MagicOnionSwaggerMiddleware : OwinMiddleware
     {
         static readonly Task EmptyTask = Task.FromResult(0);
 
-        readonly RequestDelegate next;
+        readonly OwinMiddleware next;
         readonly IReadOnlyList<MethodHandler> handlers;
-        readonly SwaggerOptions options;
+        readonly SwaggerOptionsOwin options;
 
-        public MagicOnionSwaggerMiddleware(RequestDelegate next, IReadOnlyList<MethodHandler> handlers, SwaggerOptions options)
+        public MagicOnionSwaggerMiddleware(OwinMiddleware next, IReadOnlyList<MethodHandler> handlers, SwaggerOptionsOwin options) : base(next)
         {
             this.next = next;
             this.handlers = handlers;
             this.options = options;
         }
 
-        public async Task Invoke(HttpContext httpContext)
+        public override async Task Invoke(IOwinContext httpContext)
         {
             // reference embedded resouces
             const string prefix = "MagicOnion.HttpGateway.Swagger.SwaggerUI.";
@@ -32,19 +32,21 @@ namespace MagicOnion.HttpGateway
             var path = httpContext.Request.Path.Value.Trim('/');
             if (path == "") path = "index.html";
             var filePath = prefix + path.Replace("/", ".");
-            var mediaType = GetMediaType(filePath);
+            var mediaType = Utils.GetMediaType(filePath);
 
             if (path.EndsWith(options.JsonName))
             {
-                var builder = new SwaggerDefinitionBuilder(options, httpContext, handlers);
+                var requestHost = httpContext.Request.Headers["Host"];
+                var requestScheme = httpContext.Request.IsSecure ? "https" : httpContext.Request.Scheme;
+                var builder = new SwaggerDefinitionBuilder<IOwinContext>(options, httpContext, handlers, requestHost, requestScheme);
                 var bytes = builder.BuildSwaggerJson();
-                httpContext.Response.Headers["Content-Type"] = new[] { "application/json" };
+                httpContext.Response.Headers["Content-Type"] = "application/json";
                 httpContext.Response.StatusCode = 200;
                 await httpContext.Response.Body.WriteAsync(bytes, 0, bytes.Length);
                 return;
             }
 
-            var myAssembly = typeof(MagicOnionSwaggerMiddleware).GetTypeInfo().Assembly;
+            var myAssembly = typeof(SwaggerOptions<>).GetTypeInfo().Assembly;
 
             using (var stream = myAssembly.GetManifestResourceStream(filePath))
             {
@@ -53,11 +55,11 @@ namespace MagicOnion.HttpGateway
                     if (stream == null)
                     {
                         // not found, standard request.
-                        await next(httpContext);
+                        await next.Invoke(httpContext);
                         return;
                     }
 
-                    httpContext.Response.Headers["Content-Type"] = new[] { mediaType };
+                    httpContext.Response.Headers["Content-Type"] = mediaType;
                     httpContext.Response.StatusCode = 200;
                     var response = httpContext.Response.Body;
                     await stream.CopyToAsync(response);
@@ -81,50 +83,15 @@ namespace MagicOnion.HttpGateway
                     if (bytes == null)
                     {
                         // not found, standard request.
-                        await next(httpContext);
+                        await next.Invoke(httpContext);
                         return;
                     }
 
-                    httpContext.Response.Headers["Content-Type"] = new[] { mediaType };
+                    httpContext.Response.Headers["Content-Type"] = mediaType;
                     httpContext.Response.StatusCode = 200;
                     var response = httpContext.Response.Body;
                     await response.WriteAsync(bytes, 0, bytes.Length);
                 }
-            }
-        }
-
-        static string GetMediaType(string path)
-        {
-            var extension = path.Split('.').Last();
-
-            switch (extension)
-            {
-                case "css":
-                    return "text/css";
-                case "js":
-                    return "text/javascript";
-                case "json":
-                    return "application/json";
-                case "gif":
-                    return "image/gif";
-                case "png":
-                    return "image/png";
-                case "eot":
-                    return "application/vnd.ms-fontobject";
-                case "woff":
-                    return "application/font-woff";
-                case "woff2":
-                    return "application/font-woff2";
-                case "otf":
-                    return "application/font-sfnt";
-                case "ttf":
-                    return "application/font-sfnt";
-                case "svg":
-                    return "image/svg+xml";
-                case "ico":
-                    return "image/x-icon";
-                default:
-                    return "text/html";
             }
         }
     }

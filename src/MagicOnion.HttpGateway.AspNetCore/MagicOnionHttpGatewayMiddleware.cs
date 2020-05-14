@@ -1,4 +1,4 @@
-﻿using Grpc.Core;
+using Grpc.Core;
 using System.Reflection;
 using MagicOnion.Server;
 using Microsoft.AspNetCore.Http;
@@ -54,46 +54,7 @@ namespace MagicOnion.HttpGateway
                         StringValues stringValues;
                         if (httpContext.Request.Form.TryGetValue(p.Name, out stringValues))
                         {
-                            if (p.ParameterType == typeof(string))
-                            {
-                                args.Add((string)stringValues);
-                            }
-                            else if (p.ParameterType.GetTypeInfo().IsEnum)
-                            {
-                                args.Add(Enum.Parse(p.ParameterType, (string)stringValues));
-                            }
-                            else
-                            {
-                                var collectionType = GetCollectionType(p.ParameterType);
-                                if (stringValues.Count == 1 || collectionType == null)
-                                {
-                                    var values = (string)stringValues;
-                                    if (p.ParameterType == typeof(DateTime) || p.ParameterType == typeof(DateTimeOffset) || p.ParameterType == typeof(DateTime?) || p.ParameterType == typeof(DateTimeOffset?))
-                                    {
-                                        values = "\"" + values + "\"";
-                                    }
-
-                                    args.Add(JsonConvert.DeserializeObject(values, p.ParameterType));
-                                }
-                                else
-                                {
-                                    string serializeTarget;
-                                    if (collectionType == typeof(string))
-                                    {
-                                        serializeTarget = "[" + string.Join(", ", stringValues.Select(x => JsonConvert.SerializeObject(x))) + "]"; // escape serialzie
-                                    }
-                                    else if (collectionType.GetTypeInfo().IsEnum || collectionType == typeof(DateTime) || collectionType == typeof(DateTimeOffset) || collectionType == typeof(DateTime?) || collectionType == typeof(DateTimeOffset?))
-                                    {
-                                        serializeTarget = "[" + string.Join(", ", stringValues.Select(x => "\"" + x + "\"")) + "]";
-                                    }
-                                    else
-                                    {
-                                        serializeTarget = "[" + (string)stringValues + "]";
-                                    }
-
-                                    args.Add(JsonConvert.DeserializeObject(serializeTarget, p.ParameterType));
-                                }
-                            }
+                            args.Add(Utils.ParseParameter(p, stringValues));
                         }
                         else
                         {
@@ -153,27 +114,6 @@ namespace MagicOnion.HttpGateway
                 httpContext.Response.ContentType = "text/plain";
                 await httpContext.Response.WriteAsync(ex.ToString());
             }
-        }
-
-        Type GetCollectionType(Type type)
-        {
-            if (type.IsArray) return type.GetElementType();
-
-            if (type.GetTypeInfo().IsGenericType)
-            {
-                var genTypeDef = type.GetGenericTypeDefinition();
-                if (genTypeDef == typeof(IEnumerable<>)
-                || genTypeDef == typeof(ICollection<>)
-                || genTypeDef == typeof(IList<>)
-                || genTypeDef == typeof(List<>)
-                || genTypeDef == typeof(IReadOnlyCollection<>)
-                || genTypeDef == typeof(IReadOnlyList<>))
-                {
-                    return genTypeDef.GetGenericArguments()[0];
-                }
-            }
-
-            return null; // not collection
         }
     }
 }

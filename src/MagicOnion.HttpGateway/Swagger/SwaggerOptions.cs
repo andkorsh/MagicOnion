@@ -1,10 +1,9 @@
-﻿using MagicOnion.HttpGateway.Swagger.Schemas;
-using Microsoft.AspNetCore.Http;
+using MagicOnion.HttpGateway.Swagger.Schemas;
 using System;
 
 namespace MagicOnion.HttpGateway.Swagger
 {
-    public class SwaggerOptions
+    public abstract class SwaggerOptions<TContext>
     {
         public string ApiBasePath { get; private set; }
         public Info Info { get; set; }
@@ -13,7 +12,7 @@ namespace MagicOnion.HttpGateway.Swagger
         /// (FilePath, LoadedEmbeddedBytes) => CustomBytes)
         /// </summary>
         public Func<string, byte[], byte[]> ResolveCustomResource { get; set; }
-        public Func<HttpContext, string> CustomHost { get; set; }
+        public Func<TContext, string> CustomHost { get; set; }
         public string XmlDocumentPath { get; set; }
         public string JsonName { get; set; }
         public string[] ForceSchemas { get; set; }

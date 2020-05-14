@@ -23,6 +23,7 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using MagicOnion.HttpGateway;
 
 namespace Sandbox.NetCoreServer
 {
@@ -143,7 +144,7 @@ namespace Sandbox.NetCoreServer
             // HttpGateway has two middlewares.
             // One is SwaggerView(MagicOnionSwaggerMiddleware)
             // One is Http1-JSON to gRPC-MagicOnion gateway(MagicOnionHttpGateway)
-            app.UseMagicOnionSwagger(magicOnion.MethodHandlers, new SwaggerOptions("MagicOnion.Server", "Swagger Integration Test", "/")
+            app.UseMagicOnionSwagger(magicOnion.MethodHandlers, new SwaggerOptionsAspNetCore("MagicOnion.Server", "Swagger Integration Test", "/")
             {
                 XmlDocumentPath = xmlPath
             });

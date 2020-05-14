@@ -1,4 +1,4 @@
-﻿using Grpc.Core;
+using Grpc.Core;
 using MagicOnion.HttpGateway;
 using MagicOnion.HttpGateway.Swagger;
 using MagicOnion.Server;
@@ -18,7 +18,7 @@ namespace MagicOnion
             return app.UseMiddleware<MagicOnionHttpGatewayMiddleware>(handlers, channel);
         }
 
-        public static IApplicationBuilder UseMagicOnionSwagger(this IApplicationBuilder app, IReadOnlyList<MethodHandler> handlers, SwaggerOptions options)
+        public static IApplicationBuilder UseMagicOnionSwagger(this IApplicationBuilder app, IReadOnlyList<MethodHandler> handlers, SwaggerOptionsAspNetCore options)
         {
             return app.UseMiddleware<MagicOnionSwaggerMiddleware>(handlers, options);
         }

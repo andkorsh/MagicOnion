@@ -1,6 +1,5 @@
-﻿using MagicOnion.HttpGateway.Swagger.Schemas;
+using MagicOnion.HttpGateway.Swagger.Schemas;
 using MagicOnion.Server;
-using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using System;
@@ -15,19 +14,23 @@ using System.Xml.Linq;
 
 namespace MagicOnion.HttpGateway.Swagger
 {
-    public class SwaggerDefinitionBuilder
+    public class SwaggerDefinitionBuilder<TContext>
     {
-        readonly SwaggerOptions options;
-        readonly HttpContext httpContext;
+        readonly SwaggerOptions<TContext> options;
+        readonly TContext httpContext;
         readonly IReadOnlyList<MethodHandler> handlers;
+        readonly string requestHost;
+        readonly string requestScheme;
 
         ILookup<Tuple<string, string>, XmlCommentStructure> xDocLookup;
 
-        public SwaggerDefinitionBuilder(SwaggerOptions options, HttpContext httpContext, IEnumerable<MethodHandler> handlers)
+        public SwaggerDefinitionBuilder(SwaggerOptions<TContext> options, TContext httpContext, IEnumerable<MethodHandler> handlers, string requestHost, string requestScheme)
         {
             this.options = options;
             this.httpContext = httpContext;
             this.handlers = handlers.Where(x => x.MethodType == Grpc.Core.MethodType.Unary).ToArray();
+            this.requestHost = requestHost;
+            this.requestScheme = requestScheme;
         }
 
         public byte[] BuildSwaggerJson()
@@ -47,9 +50,9 @@ namespace MagicOnion.HttpGateway.Swagger
 
                 var doc = new SwaggerDocument();
                 doc.info = options.Info;
-                doc.host = (options.CustomHost != null) ? options.CustomHost(httpContext) : httpContext.Request.Headers["Host"][0];
+                doc.host = (options.CustomHost != null) ? options.CustomHost(httpContext) : requestHost;
                 doc.basePath = options.ApiBasePath;
-                doc.schemes = (options.ForceSchemas.Length == 0) ? new[] { httpContext.Request.IsHttps ? "https" : httpContext.Request.Scheme } : options.ForceSchemas;
+                doc.schemes = (options.ForceSchemas.Length == 0) ? new[] { requestScheme } : options.ForceSchemas;
                 doc.paths = new Dictionary<string, PathItem>();
                 doc.definitions = new Dictionary<string, Schema>();
 
